@@ -18,9 +18,9 @@ We take the security of this project seriously. If you discover a security vulne
 
 Instead, please report them via one of the following methods:
 
-1. **Email**: Send details to security@opendashboard-inc.example.com
-2. **GitHub Security Advisory**: Use the [GitHub Security Advisory](https://github.com/Opendashboard-Inc/public-test/security/advisories/new) feature (preferred)
-3. **Private Vulnerability Reporting**: Use GitHub's private vulnerability reporting feature if enabled
+1. **GitHub Security Advisory**: Use the [GitHub Security Advisory](https://github.com/Opendashboard-Inc/public-test/security/advisories/new) feature (preferred)
+2. **Private Vulnerability Reporting**: Use GitHub's private vulnerability reporting feature if enabled
+3. **Email**: Send details to **[CONFIGURE: Add your security team email address here]**
 
 ### What to Include
 
@@ -78,7 +78,7 @@ This repository implements the following security measures:
 ## Contact
 
 For any security-related questions or concerns, contact:
-- Security Team: security@opendashboard-inc.example.com
+- Security Team: **[CONFIGURE: Add your security team email address here]**
 - Repository Maintainers: See CODEOWNERS file
 
 ## Bug Bounty Program

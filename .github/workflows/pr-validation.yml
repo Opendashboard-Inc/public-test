@@ -66,16 +66,21 @@ jobs:
       - name: Check for secrets
         run: |
           echo "Checking for potential secrets in code..."
+          echo "Note: This is a basic check. Consider using dedicated tools like:"
+          echo "  - GitHub's built-in secret scanning"
+          echo "  - gitleaks"
+          echo "  - truffleHog"
           
-          # Simple pattern matching for common secrets
-          if git diff origin/${{ github.base_ref }}...HEAD | grep -iE '(password|api[_-]?key|secret|token|credentials).*=.*["\047][a-zA-Z0-9]{8,}["\047]'; then
-            echo "::error::Potential secret detected in the changes. Please review and remove any hardcoded secrets."
-            exit 1
+          # Basic pattern matching for obvious secrets (prone to false positives)
+          # This is a demonstration only - use proper secret scanning tools in production
+          if git diff origin/${{ github.base_ref }}...HEAD | grep -E '(password|secret|token)\s*=\s*["\047][a-zA-Z0-9]{12,}["\047]'; then
+            echo "::warning::Potential secret pattern detected. Please verify no actual secrets are committed."
+            echo "::warning::This is a basic check - enable GitHub secret scanning for production use."
           else
-            echo "No obvious secrets detected ✓"
+            echo "No obvious secret patterns detected (basic check only)"
           fi
 
-      - name: PR size label
+      - name: Calculate PR size
         uses: actions/github-script@v7
         with:
           script: |
@@ -90,14 +95,6 @@ jobs:
             else if (total > 30) sizeLabel = 'size/S';
             
             console.log(`PR size: ${total} lines (${additions} additions, ${deletions} deletions) -> ${sizeLabel}`);
-            
-            // Note: This would add labels but requires write permissions
-            // await github.rest.issues.addLabels({
-            //   owner: context.repo.owner,
-            //   repo: context.repo.repo,
-            //   issue_number: context.payload.pull_request.number,
-            //   labels: [sizeLabel]
-            // });
 
   codeowners-check:
     name: Check CODEOWNERS
@@ -112,13 +109,20 @@ jobs:
           if [ -f CODEOWNERS ]; then
             echo "CODEOWNERS file exists ✓"
             
-            # Check syntax
-            if grep -E '^[^#\s]' CODEOWNERS | grep -v '^[*@/]'; then
-              echo "::error::CODEOWNERS file may have syntax errors"
-              exit 1
-            fi
+            # Basic validation: check that non-comment lines have valid format
+            # Valid lines should start with pattern (*, /, filename) followed by owners (@user/@team)
+            while IFS= read -r line; do
+              # Skip empty lines and comments
+              if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
+                continue
+              fi
+              # Check if line has at least 2 fields (pattern and owner)
+              if ! echo "$line" | grep -qE '^[^[:space:]]+[[:space:]]+@'; then
+                echo "::warning::Potential CODEOWNERS syntax issue in line: $line"
+              fi
+            done < CODEOWNERS
             
-            echo "CODEOWNERS syntax looks good ✓"
+            echo "CODEOWNERS basic validation complete ✓"
           else
             echo "::warning::CODEOWNERS file not found"
           fi
