@@ -1,0 +1,148 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR title format
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "PR Title: $PR_TITLE"
+          
+          # Check if title follows conventional commit format
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?: ]]; then
+            echo "::warning::PR title should follow conventional commit format: type(scope): description"
+            echo "::warning::Valid types: feat, fix, docs, style, refactor, perf, test, chore"
+          fi
+
+      - name: Check PR description
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          
+          if [ -z "$PR_BODY" ] || [ "$PR_BODY" = "null" ]; then
+            echo "::error::PR description is empty. Please provide a description."
+            exit 1
+          fi
+          
+          echo "PR description is present ✓"
+
+      - name: Check for linked issues
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          
+          if [[ "$PR_BODY" =~ (Fixes|Closes|Resolves|Relates to) #[0-9]+ ]]; then
+            echo "Linked issue found ✓"
+          else
+            echo "::warning::No linked issues found. Consider linking related issues with 'Fixes #123' or 'Relates to #123'"
+          fi
+
+      - name: Check file count
+        run: |
+          FILES_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          echo "Files changed: $FILES_CHANGED"
+          
+          if [ "$FILES_CHANGED" -gt 50 ]; then
+            echo "::warning::This PR changes $FILES_CHANGED files. Consider breaking it into smaller PRs."
+          fi
+
+      - name: Check for secrets
+        run: |
+          echo "Checking for potential secrets in code..."
+          
+          # Simple pattern matching for common secrets
+          if git diff origin/${{ github.base_ref }}...HEAD | grep -iE '(password|api[_-]?key|secret|token|credentials).*=.*["\047][a-zA-Z0-9]{8,}["\047]'; then
+            echo "::error::Potential secret detected in the changes. Please review and remove any hardcoded secrets."
+            exit 1
+          else
+            echo "No obvious secrets detected ✓"
+          fi
+
+      - name: PR size label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const additions = context.payload.pull_request.additions || 0;
+            const deletions = context.payload.pull_request.deletions || 0;
+            const total = additions + deletions;
+            
+            let sizeLabel = 'size/XS';
+            if (total > 500) sizeLabel = 'size/XL';
+            else if (total > 250) sizeLabel = 'size/L';
+            else if (total > 100) sizeLabel = 'size/M';
+            else if (total > 30) sizeLabel = 'size/S';
+            
+            console.log(`PR size: ${total} lines (${additions} additions, ${deletions} deletions) -> ${sizeLabel}`);
+            
+            // Note: This would add labels but requires write permissions
+            // await github.rest.issues.addLabels({
+            //   owner: context.repo.owner,
+            //   repo: context.repo.repo,
+            //   issue_number: context.payload.pull_request.number,
+            //   labels: [sizeLabel]
+            // });
+
+  codeowners-check:
+    name: Check CODEOWNERS
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate CODEOWNERS file
+        run: |
+          if [ -f CODEOWNERS ]; then
+            echo "CODEOWNERS file exists ✓"
+            
+            # Check syntax
+            if grep -E '^[^#\s]' CODEOWNERS | grep -v '^[*@/]'; then
+              echo "::error::CODEOWNERS file may have syntax errors"
+              exit 1
+            fi
+            
+            echo "CODEOWNERS syntax looks good ✓"
+          else
+            echo "::warning::CODEOWNERS file not found"
+          fi
+
+  security-check:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for security policy
+        run: |
+          if [ -f SECURITY.md ]; then
+            echo "SECURITY.md exists ✓"
+          else
+            echo "::warning::SECURITY.md not found. Consider adding a security policy."
+          fi
+
+      - name: Check for dependabot config
+        run: |
+          if [ -f .github/dependabot.yml ]; then
+            echo "Dependabot configuration exists ✓"
+          else
+            echo "::warning::Dependabot not configured. Consider enabling automated dependency updates."
+          fi

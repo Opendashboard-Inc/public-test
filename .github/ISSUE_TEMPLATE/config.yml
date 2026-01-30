@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/Opendashboard-Inc/public-test/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 📚 Documentation
+    url: https://github.com/Opendashboard-Inc/public-test/wiki
+    about: Check out our documentation and guides
+  - name: 🔒 Security Issue
+    url: https://github.com/Opendashboard-Inc/public-test/security/advisories/new
+    about: Report a security vulnerability (do not use public issues!)

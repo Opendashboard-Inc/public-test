@@ -1,0 +1,123 @@
+name: Repository Health Check
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health-check:
+    name: Check Repository Health
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check required files
+        run: |
+          echo "Checking for required repository governance files..."
+          
+          REQUIRED_FILES=(
+            "README.md"
+            "CONTRIBUTING.md"
+            "SECURITY.md"
+            "CODEOWNERS"
+            "LICENSE"
+            ".github/PULL_REQUEST_TEMPLATE.md"
+          )
+          
+          MISSING_FILES=()
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists"
+            else
+              echo "✗ $file is missing"
+              MISSING_FILES+=("$file")
+            fi
+          done
+          
+          if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+            echo "::warning::Missing recommended files: ${MISSING_FILES[*]}"
+          else
+            echo "All recommended files are present ✓"
+          fi
+
+      - name: Check GitHub configuration
+        run: |
+          echo "Checking GitHub configuration files..."
+          
+          CONFIG_FILES=(
+            ".github/ISSUE_TEMPLATE/bug_report.md"
+            ".github/ISSUE_TEMPLATE/feature_request.md"
+            ".github/ISSUE_TEMPLATE/config.yml"
+          )
+          
+          for file in "${CONFIG_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists"
+            else
+              echo "::warning::$file is missing"
+            fi
+          done
+
+      - name: Validate CODEOWNERS
+        if: always()
+        run: |
+          if [ -f CODEOWNERS ]; then
+            echo "Validating CODEOWNERS file..."
+            
+            # Count number of rules
+            RULES=$(grep -cE '^[^#\s]' CODEOWNERS || echo "0")
+            echo "Found $RULES CODEOWNERS rules"
+            
+            # Check for orphaned rules (patterns that might not match anything)
+            echo "Checking CODEOWNERS patterns..."
+            while IFS= read -r line; do
+              if [[ "$line" =~ ^[^#] ]]; then
+                PATTERN=$(echo "$line" | awk '{print $1}')
+                if [[ "$PATTERN" == /* ]] && [ ! -e ".${PATTERN}" ] && ! ls -d ".${PATTERN%/}"* 2>/dev/null | grep -q .; then
+                  echo "::warning::CODEOWNERS pattern '$PATTERN' may not match any files"
+                fi
+              fi
+            done < CODEOWNERS
+          fi
+
+      - name: Generate health report
+        if: always()
+        run: |
+          echo "# Repository Health Report" > health-report.md
+          echo "Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> health-report.md
+          echo "" >> health-report.md
+          
+          echo "## Files Present" >> health-report.md
+          for file in README.md CONTRIBUTING.md SECURITY.md CODEOWNERS LICENSE; do
+            if [ -f "$file" ]; then
+              echo "- ✓ $file" >> health-report.md
+            else
+              echo "- ✗ $file (missing)" >> health-report.md
+            fi
+          done
+          
+          echo "" >> health-report.md
+          echo "## Repository Statistics" >> health-report.md
+          echo "- Total files: $(git ls-files | wc -l)" >> health-report.md
+          echo "- Total commits: $(git rev-list --count HEAD)" >> health-report.md
+          
+          cat health-report.md
+
+      - name: Upload health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-health-report
+          path: health-report.md
+          retention-days: 30
