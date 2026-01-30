@@ -1,0 +1,30 @@
+# CODEOWNERS file
+# This file defines individuals or teams that are responsible for code in this repository.
+# Code owners are automatically requested for review when someone opens a pull request
+# that modifies code that they own.
+#
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+# These owners will be the default owners for everything in the repo.
+# Unless a later match takes precedence, they will be requested for
+# review when someone opens a pull request.
+* @Opendashboard-Inc/admins
+
+# Documentation owners
+# These users own all documentation files
+*.md @Opendashboard-Inc/docs-team
+/docs/ @Opendashboard-Inc/docs-team
+
+# GitHub configuration owners
+# These users own GitHub-specific configuration files
+/.github/ @Opendashboard-Inc/devops-team
+CODEOWNERS @Opendashboard-Inc/admins
+
+# Security-related files
+SECURITY.md @Opendashboard-Inc/security-team
+
+# Example: Source code ownership (uncomment and adjust as needed)
+# /src/ @Opendashboard-Inc/developers
+# /tests/ @Opendashboard-Inc/qa-team
+# /scripts/ @Opendashboard-Inc/devops-team
